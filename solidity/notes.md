@@ -31,6 +31,12 @@ contract Counter{
 ###count cant go below zero because it is unasigned integer 
 
 
+
+
+
+
+
+
 ///////////////////////////////// first smart contract /////////////////////////////////////////////////////
 
 pragma solidity ^0.8.0;
@@ -60,7 +66,7 @@ contract Counter{
     function getCount() public view returns (uint){
         return count;
     }
-    function setName(string memory_newName) public returns(string memory newName){
+    function setName(string memory _newName) public returns(string memory newName){
         name = _newName;
         return name;
     }
@@ -201,3 +207,248 @@ const { describe, beforeEach } = require('node:test');
  })
 
 
+
+
+
+
+
+
+/////////////////////////////////////////////////////////////////////////
+nft's
+
+Escrow.sol 
+pragma solidity ^0.8.0;
+
+interface IERC721 {
+    function transferFrom(
+        address _from,
+        address _to,
+        uint256 _id
+    ) external;
+}
+
+contract Escrow {
+    address public nftAdress;
+    uint256 public nftID;
+    uint256 public purchasePrice;
+    uint256 public escrowAmount;
+    address public seller;
+    address public buyer;
+    address public inspector;
+    address public lender;
+
+    modifier onlybuyer(){
+         require(msg.sender==buyer,"only buyer can call this function");
+         _;
+
+    }
+     modifier onlyinspector(){
+         require(msg.sender==inspector,"only inspector can call this function");
+         _;
+
+    }
+
+    bool public inpectionPassed = false;
+
+    constructor(
+        address _nftAdress,
+        uint256 _nftID,
+        uint256 _purchasePrice,
+        uint256 _escrowAmount,
+        address payable _seller,
+        address payable _buyer,
+        address inspector,
+        address lender
+    ) {
+        nftAdress = _nftAdress;
+        nftID = _nftID;
+        purchasePrice=_purchasePrice;
+        escrowAmount=_escrowAmount;
+        seller = _seller;
+        buyer = _buyer;
+        inspector=_inspector;
+        lender=_lender;
+
+    }
+
+    
+
+    function depositEarnest() public payable onlybuyer {
+        require(msg.value>=escrowAmount);
+       
+
+    }
+    function updateInsceptionStatus(bool _passed) public onlyinspector{ 
+        insceptionPassed=_passed;
+    }
+
+    function getBalance() public view returns (uint){
+        return address(this).balance;
+    }
+
+    function finalSale() public {
+        IERC721(nftAdress).transferFrom(
+            seller,
+            buyer,
+            nftID
+        );
+    }
+}
+
+
+---------------------------------------------------------------------------
+realestate.js
+const { expect } = require("chai");
+const { ethers } = require("hardhat");
+
+const token=(n)=>{
+    return ethers.utils.praseUnits(n.toString(),'ether')
+}
+const ether = tokens
+
+describe("RealEstate", () => {
+    let realEstate, escrow;
+    let deployer, seller, buyer;
+    let nftid = 1;
+    let purchase = ether(100)
+    let escrowAmount=ether(20)
+
+    beforeEach(async () => {
+
+        // Get test accounts
+        accounts = await ethers.getSigners();
+
+        deployer = accounts[0];
+        seller = accounts[0];
+        buyer = accounts[1];
+        inspector=accounts[2];
+        lender = accounts[3];
+
+        // Get contract factories
+        const Realestate = await ethers.getContractFactory("Realestate");
+        const Escrow = await ethers.getContractFactory("Escrow");
+
+        // Deploy RealEstate NFT contract
+        realEstate = await Realestate.deploy();
+
+        // Deploy Escrow contract
+        escrow = await Escrow.deploy(
+            realEstate.address,
+            nftid,
+            purchase,
+            escrowAmount,
+            seller.address,
+            buyer.address,
+            inspector.address,
+            lender.address
+        );
+
+        // Seller gives Escrow permission to transfer NFT #1
+        transaction = await realEstate
+            .connect(seller)
+            .approve(escrow.address, nftid);
+
+        await transaction.wait();
+    });
+
+    describe("Development", () => {
+
+        it("NFT is owned by seller", async () => {
+
+            expect(
+                await realEstate.ownerOf(nftid)
+            ).to.equal(seller.address);
+
+        });
+
+    });
+
+    describe("Selling real estate", () => {
+        let balance , transaction
+
+        it("transfers NFT from seller to buyer", async () => {
+
+            // Before sale
+            expect(
+                await realEstate.ownerOf(nftid)
+            ).to.equal(seller.address);
+
+            // buyer deposit earnest 
+            transaction = await escrow.connect(buyer).depositEarnest({value: escrowAmount})
+
+            //check escrow balance 
+            balance = await escrow.getBalance()
+            console.log("escrow balance:", ethers.utils.formatEther(balance))
+
+            //inspector update staus 
+            transaction = await escrow.connect(inspector).updateInspectionStatus(true)
+            await transaction.wait()
+            console.log("inspector updates status ")
+
+            // Buyer finalizes the sale
+            transaction = await escrow
+                .connect(buyer)
+                .finalSale();
+
+            await transaction.wait();
+
+            // After sale
+            expect(
+                await realEstate.ownerOf(nftid)
+            ).to.equal(buyer.address);
+
+        });
+
+    });
+
+});
+
+
+
+
+pragma solodity^0.8.0;
+
+interface IERC721{
+    function transferForm(
+        address _from,
+        address _to,
+        uint256 _id
+    ) external;
+}
+
+contract Escrow{
+    address public nftAdress;
+    uint256 public nftId;
+    uint256 public purchasePrice;
+    uint256 public escrowAmount;
+    address public seller;
+    address public buyer;
+    address public inspector;
+    address public lender;
+
+    bool public inspectionPassed = false;
+
+    constructor(
+        address _nftAddress,
+        uint256 _nftId,
+        uint256 _purchasePrice,
+        uint256 _escrowAmount,
+        address payable _seller,
+        address payable _buyer,
+        address inspector,
+        address lender
+    ){
+        nftAdress = _nftAddress;
+        nftId= _nftId;
+        purchasePrice =_purchasePrice;
+        escrowAmount = _escrowAmount;
+        seller = _seller;
+        buyer = _buyer;
+        inspector = _inspector;
+        lender = _lender;
+    }
+
+    function depositEarnest() public payable onlybuyer{
+        require(msg.value>=)
+    }
+}
