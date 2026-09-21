@@ -1,0 +1,201 @@
+Storage.sol
+
+// I'm a comment!
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.19;
+
+// pragma solidity ^0.8.0;
+// pragma solidity >=0.8.0 <0.9.0;
+
+contract SimpleStorage {
+    uint256 myFavoriteNumber;
+
+    struct Person {
+        uint256 favoriteNumber;
+        string name;
+    }
+    // uint256[] public anArray;
+    Person[] public listOfPeople;
+
+    mapping(string => uint256) public nameToFavoriteNumber;
+
+    function store(uint256 _favoriteNumber) public virtual {
+        myFavoriteNumber = _favoriteNumber;
+    }
+
+    function retrieve() public view returns (uint256) {
+        return myFavoriteNumber;
+    }
+
+    function addPerson(string memory _name, uint256 _favoriteNumber) public {
+        listOfPeople.push(Person(_favoriteNumber, _name));
+        nameToFavoriteNumber[_name] = _favoriteNumber;
+    }
+}
+
+
+
+StorageFactory.sol
+
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.18;
+
+import {SimpleStorage} from  "./Storage.sol";
+
+
+contract StorageFactory{
+     SimpleStorage[] public listofSimpleStorage;
+
+
+    function createsimpleStorageContract () public {
+       SimpleStorage newSimpleStorageContract = new SimpleStorage();
+       listofSimpleStorage.push(newSimpleStorageContract);
+
+    }
+
+    function sfStorage (uint256 SimpleStorageIndex, uint256 newSimpleStorageNumber) public {
+        //address 
+        //abs
+        SimpleStorage mySimpleStorage = SimpleStorage(listofSimpleStorage[SimpleStorageIndex]); // SimpleStorage(address)
+
+        mySimpleStorage.store(newSimpleStorageNumber);
+    }
+
+    function sfGet (uint256 SimpleStorageIndex) public view returns(uint256){
+        SimpleStorage mySimpleStorage = listofSimpleStorage[SimpleStorageIndex];
+        return mySimpleStorage.retrieve();
+
+    }
+}
+
+
+
+
+
+////////// project FundMe 
+
+
+FundMe.sol
+
+
+
+
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.18;
+
+import {PriceConveter} from "./PriceConveter.sol";
+
+contract FundMe{
+
+    using PriceConveter for uint256;
+
+
+    address[] public funders;
+    mapping (address funder =>uint256 amountFunded) public addressToAmountFunded;
+
+
+
+    uint256 public constant minimumUsd = 5*(10**18);
+
+
+    address public immutable owner;
+    constructor(){
+        owner= msg.sender;
+    }
+    function fund() public payable  {
+
+        
+
+        require(msg.value.convertPrice()>minimumUsd ,"did'nt send enough eth"); //1e18 = 1 ether
+        funders.push(msg.sender);
+        addressToAmountFunded[msg.sender]= addressToAmountFunded[msg.sender]+msg.value;
+    }
+
+    function withDraw() public onlyOwner{
+        
+
+        for(uint256 funderIndex = 0; funderIndex<funders.length;funderIndex++){
+            address funder = funders[funderIndex];
+            addressToAmountFunded[funder]=0;
+        }
+        funders = new address[](0);
+
+        //transfer 
+
+        payable (msg.sender).transfer(address(this).balance);
+
+        //send 
+
+        bool sendSuccess = payable(msg.sender).send(address(this).balance);
+        require(sendSuccess,"send failed");
+
+        //call
+
+        bool callSuccess = payable(msg.sender).call{value: address(this).balance}("");
+        require(callSuccess,"call failed ");
+
+    }
+    
+    modifier onlyOwner(){
+        require(msg.sender == owner,"Sender is not owner ");
+        _;
+    }
+
+    receive() external payable {
+        fund();
+     }
+
+    fallback() external payable {
+        fund();
+     }
+
+    
+    }
+
+
+
+
+
+
+
+
+    ///// 
+    PriceConveter.sol 
+
+    // SPDX-License-Identifier: MIT
+pragma solidity ^0.8.18;
+import {AggregatorV3Interface} from "@chainlink/contracts@1.5.0/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+
+library PriceConveter {
+    function fund() public payable  {
+
+        require(convertPrice(msg.value)>minimumUsd ,"did'nt send enough eth"); //1e18 = 1 ether
+        funders.push(msg.sender);
+        addressToAmountFunded[msg.sender]= addressToAmountFunded[msg.sender]+msg.value;
+    }
+
+    function getPrice() internal  view returns (uint256){
+
+        //adress 0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419
+        //abi 
+        AggregatorV3Interface PriceFeed = AggregatorV3Interface(0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419)
+        (,int256 price ,,,) = PriceFeed.latestRoundData();
+        return uint256(price*1e10);
+    }
+
+    function convertPrice(uint256 ethAmount) internal  view returns(uint256) {
+        uint256 ethPrice = getPrice();
+        uint256 ethAmountinUsd = ethPrice*ethAmount/1e18;
+        return ethAmountinUsd;
+
+    }
+
+
+    
+
+    function getVersion() internal view returns (uint256){
+        return AggregatorV3Interface(0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419).version();
+    }
+
+}
