@@ -91,9 +91,8 @@ contract FundMe{
     using PriceConveter for uint256;
 
 
-    address[] public funders;
+    (address[] public funders;)
     mapping (address funder =>uint256 amountFunded) public addressToAmountFunded;
-
 
 
     uint256 public constant minimumUsd = 5*(10**18);
@@ -198,4 +197,185 @@ library PriceConveter {
         return AggregatorV3Interface(0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419).version();
     }
 
+}
+
+
+
+
+////// simpleBank my contract 
+
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.18;
+
+
+
+contract SimpleBank{
+    address public immutable owner;
+    constructor(){
+        owner = msg.sender;
+     }
+
+    event Deposited(address indexed user,uint256 amount);
+    event withDrawn(address indexed user,uint256 amount);
+    mapping (address=>uint256) public balances;
+
+
+    function Deposite() public payable  {
+        balances[msg.sender]+=msg.value;
+        emit Deposited(msg.sender,msg.value);
+     }
+
+     function getBalance() public view returns(uint256){
+        return balances[msg.sender];
+     }
+
+     function withdrawAmount(uint256 amountNeeded) public {
+        require(balances[msg.sender]>=amountNeeded);
+        balances[msg.sender]=balances[msg.sender]-amountNeeded; 
+
+        //transfer
+        (bool success, ) = payable(msg.sender).call{value: amountNeeded}("");
+         require(success, "Transfer failed");
+        emit withDrawn(msg.sender, amountNeeded);
+
+     }
+
+     modifier onlyOwner(){
+        require(msg.sender==owner,"Not owner");
+        _;
+     }
+
+     
+
+
+
+}
+
+
+
+
+
+voters dappp contract 
+
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.18;
+
+contract Voting {
+    address public owner;
+
+    constructor() {
+        owner = msg.sender;
+    }
+
+    struct propasol {
+        uint256 id;
+        string description;
+        uint256 voteCount;
+    }
+
+    struct voter {
+        address voterAddress;
+        bool hasVoted;
+        uint256 propasolId;
+    }
+
+    propasol[] public propasols;
+
+    mapping(address => voter) public voters;
+     event creatingproposal(uint256 id,string description,uint256 voteCount);
+     event Startvote(bool votingStarted);
+     event voting(address voterAdress);
+     event votingEnded(bool voteEnd);
+     event win(uint256 winnerId,uint256 winnerCount);
+
+    function createProposal() public onlyOwner {
+        require(votingStarted==false,"voting has already been started ");
+        propasols.push(propasol({
+            id: propasols.length,
+            description: "voting the leader of the group",
+            voteCount: 0
+        }));
+         emit creatingproposal(propasols[propasols.length - 1].id, propasols[propasols.length - 1].description,propasols[propasols.length - 1].voteCount);
+    }
+
+    function regsterVoter() public{
+        
+    }
+    bool public votingStarted;
+    bool public votingEnd;
+
+    function StartVoting() public onlyOwner{
+        require(propasols.length>0,"no proposal created ");
+        require(votingStarted==false,"already voting has been started ");
+        require(votingEnd == false, "voting has already ended");
+        votingStarted=true;
+        emit Startvote(votingStarted);
+
+
+
+
+    }
+
+    function vote(uint256 _proposalId) public {
+        require(votingStarted==true);
+        require(_proposalId < propasols.length, "Proposal does not exist");
+        require(!voters[msg.sender].hasVoted, "You have already voted");
+
+        voters[msg.sender] = voter({
+            voterAddress: msg.sender,
+            hasVoted: true,
+            propasolId: _proposalId
+        });
+
+        propasols[_proposalId].voteCount++;
+        emit voting(msg.sender);
+    }
+
+
+    function voteEnding() public onlyOwner{
+             require(propasols.length>0,"no proposal created ");
+             require(votingStarted==true,"voting is not started ");
+             require(votingEnd==false,"voting has been already ended");
+             votingStarted = false;
+             votingEnd=true;
+
+             emit votingEnded( votingEnd);
+
+
+
+
+    }
+
+    function getWinner() public returns(uint256,uint256){
+        require(propasols.length>0,"no proposal have been created ");
+        require(votingEnd==true,"voting is still not ended");
+       uint256 maxVote ;
+       uint256 winner;
+       uint256 winnerId;
+       for(uint256 i=0; i<propasols.length;i++){
+        if(maxVote<propasols[i].voteCount){
+            maxVote=propasols[i].voteCount;
+             winner = maxVote;
+        winnerId = propasols[i].id;
+
+
+        }
+       
+        
+
+
+       }
+       emit win(winner,winnerId);
+       return (winner, winnerId);
+
+       
+       
+
+
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "you are not allowed");
+        _;
+    }
 }
